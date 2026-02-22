@@ -1,16 +1,58 @@
-# Data Pipeline Continuous Improvement
+# Data Pipeline Framework
 
-**A self-updating vector pipeline that processes 373 AI conversations (1.2M words) into 17,428 searchable chunks — with incremental updates that run in <10 seconds instead of 5+ minutes.**
+**Business intelligence infrastructure for AOS — collecting operational data across businesses, cascading it through an analysis layer, and surfacing recommendations every Sunday morning.**
 
 ---
 
-## The Problem
+## What This Does
 
-The obvious way to build a semantic search pipeline is also the wrong way: parse everything, embed everything, store everything, repeat when anything changes. At small scale it works. At 373 conversations and 224MB of raw JSON, a full rebuild takes 5+ minutes and makes the pipeline too expensive to run frequently — so you run it less often, the index drifts from reality, and retrieval quality degrades silently.
+A business running on AOS generates data constantly — workflow executions, financial transactions, content performance, emails processed, operational health signals. This pipeline collects it across sources, normalizes it into a shared schema, and feeds it into an analysis layer that produces strategic recommendations by Sunday morning. Workflow performance data feeds back into internal operations — error rates, execution timing, and failure patterns improve the system running the business. A new business joining the platform inherits this infrastructure instead of building its own.
 
-The deeper problem is that most pipelines are built for a static dataset. Production systems aren't static. Conversations accumulate. Documents change. New content arrives continuously. A pipeline that can't incorporate incremental changes without full rebuilds isn't a production pipeline — it's a batch job pretending to be one.
+The technical foundation is Supabase/PostgreSQL — structured tables, reliable writes, and a schema designed for cross-business aggregation. Data flows in five stages: ingest across sources, detect what changed, store only new or modified records, run analysis, write recommendations. The `optimization_recommendations` table is where the pipeline closes the loop — pending recommendations surface in the Sunday briefing, reviewed and acted on before the week starts.
 
-There's a third problem specific to conversational data: conversations don't chunk like documents. A 10,000-word document has natural section breaks. A 10,000-word conversation has topic shifts, digressions, and context that spans 50 exchanges. Naive chunking by token count destroys the retrieval signal. The chunk boundaries matter as much as the embeddings.
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         DATA SOURCES                            │
+│                                                                 │
+│  Workflow executions  │  Financial transactions  │  Email vol.  │
+│  Content performance  │  Workflow health signals │  New content │
+└──────────────────┬──────────────────────────────────────────────┘
+                   │
+                   ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     INGESTION + NORMALIZATION                   │
+│                                                                 │
+│  Shared schema (Supabase / PostgreSQL)                          │
+│  Hash-based change detection — skip unchanged records           │
+│  Cross-business aggregation via shared tables                   │
+└──────────────────┬──────────────────────────────────────────────┘
+                   │
+                   ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                       ANALYSIS LAYER                            │
+│                                                                 │
+│  Trend detection — performance, cost, volume, error rates       │
+│  Workflow health scoring — execution rates, failure patterns     │
+│  Cross-business pattern matching — what worked elsewhere        │
+└──────────────────┬──────────────────────────────────────────────┘
+                   │
+                   ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  optimization_recommendations                    │
+│                                                                 │
+│  Strategic recommendations with status = 'pending'              │
+│  Cost efficiency flags  │  Capacity signals  │  Growth triggers │
+│  Internal ops improvements from workflow health data            │
+└──────────────────┬──────────────────────────────────────────────┘
+                   │
+                   ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      SUNDAY BRIEFING                            │
+│                                                                 │
+│  Synthesized weekly recommendations — reviewed before Mon.      │
+│  Next topic, budget reallocation, workflow fixes, growth flags  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
